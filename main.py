@@ -1,7 +1,7 @@
 import cv2
 from config.settings import *
 from crypto.chaos_generator import ChaosKeyGenerator
-from crypto.encryptor import FrameEncryptor
+from crypto.aes_encryptor import AESCFBFrameEncryptor
 from video.video_io import open_video, create_writer
 from gui.viewer import show_frames
 from utils.timer import Timer
@@ -11,7 +11,7 @@ writer_enc = create_writer(VIDEO_ENCRYPTED, FPS, (FRAME_WIDTH, FRAME_HEIGHT))
 writer_dec = create_writer(VIDEO_DECRYPTED, FPS, (FRAME_WIDTH, FRAME_HEIGHT))
 
 keygen = ChaosKeyGenerator()
-encryptor = FrameEncryptor(keygen)
+encryptor = AESCFBFrameEncryptor(keygen)
 timer = Timer()
 
 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
