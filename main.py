@@ -10,10 +10,20 @@ cap = open_video(VIDEO_INPUT)
 writer_enc = create_writer(VIDEO_ENCRYPTED, FPS, (FRAME_WIDTH, FRAME_HEIGHT))
 writer_dec = create_writer(VIDEO_DECRYPTED, FPS, (FRAME_WIDTH, FRAME_HEIGHT))
 
-keygen = ChaosKeyGenerator()
-encryptor = AESCFBFrameEncryptor(keygen)
-timer = Timer()
+seed = 0.1
+warmup = 1000
 
+keygen_enc = ChaosKeyGenerator(seed=seed)
+keygen_dec = ChaosKeyGenerator(seed=seed)
+
+for _ in range(warmup):
+    keygen_enc.step()
+    keygen_dec.step()
+
+encryptor = AESCFBFrameEncryptor(keygen_enc)
+decryptor = AESCFBFrameEncryptor(keygen_dec)
+
+timer = Timer()
 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 frame_id = 0
 
@@ -23,8 +33,9 @@ while cap.isOpened():
         break
 
     frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+
     encrypted = encryptor.encrypt(frame)
-    decrypted = encryptor.decrypt(encrypted)
+    decrypted = decryptor.decrypt(encrypted)
 
     writer_enc.write(encrypted)
     writer_dec.write(decrypted)
