@@ -1,4 +1,3 @@
-#crypto/chaos_generatoer_stenflo.py
 import numpy as np
 
 class ChaosKeyGenerator:

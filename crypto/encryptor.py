@@ -1,4 +1,3 @@
-# crypto/encryptor.py
 import numpy as np
 
 class FrameEncryptor:
