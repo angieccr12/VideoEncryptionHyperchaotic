@@ -128,7 +128,8 @@ cython_debug/
 # VS Code
 .vscode/
 
-
+# data
+data/
 
 
 # PDF and plots

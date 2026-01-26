@@ -26,7 +26,7 @@ from reporting.pdf_report import generate_pdf_report
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ORIGINAL_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\video_prueba.mp4"
+ORIGINAL_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\video_prueba3.mp4"
 ENCRYPTED_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\encrypted_video.mp4"
 DECRYPTED_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\decrypted_video.mp4"
 
