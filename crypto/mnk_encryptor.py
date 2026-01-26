@@ -1,11 +1,3 @@
-"""
-mnk_encryptor.py
-Encriptador que maneja dimensiones M×N×A×K
-M: Ancho del frame
-N: Alto del frame  
-A: Audio sincronizado por frame
-K: Estado del sistema hipercaótico (clave dinámica)
-"""
 import numpy as np
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA3_256
@@ -13,40 +5,17 @@ import struct
 
 
 class MNAKFrameEncryptor:
-    """
-    Encriptador que trabaja con estructura M×N×A×K
-    """
-    
     def __init__(self, chaos_generator, audio_samples_per_frame=0):
-        """
-        Args:
-            chaos_generator: Generador de caos hipercaótico
-            audio_samples_per_frame: Número de muestras de audio por frame
-        """
         self.chaos = chaos_generator
         self.audio_samples_per_frame = audio_samples_per_frame
         self.frame_count = 0
         
     def _get_chaos_state(self):
-        """
-        Obtiene el estado actual del sistema caótico (dimensión K)
-        Returns:
-            tuple: (x, y, z, w) - Estado 4D del sistema hipercaótico
-        """
         x, y, z, w = self.chaos.step()
         self.frame_count += 1
         return (x, y, z, w)
     
     def _derive_key_iv_from_chaos(self, chaos_state):
-        """
-        Deriva clave AES e IV desde el estado caótico K
-        
-        Args:
-            chaos_state: (x, y, z, w) estado del sistema caótico
-            
-        Returns:
-            tuple: (key, iv) para AES
-        """
         # Serializar estado caótico a bytes
         chaos_bytes = np.array(chaos_state, dtype=np.float64).tobytes()
         
@@ -61,28 +30,10 @@ class MNAKFrameEncryptor:
         return key_material[:16], key_material[16:32]
     
     def _serialize_mnak(self, frame, audio_chunk, chaos_state):
-        """
-        Serializa la estructura M×N×A×K a bytes
-        
-        Args:
-            frame: numpy array (M, N, 3) - Frame de video
-            audio_chunk: numpy array (A,) - Chunk de audio para este frame
-            chaos_state: tuple (x, y, z, w) - Estado caótico K
-            
-        Returns:
-            bytes: Estructura serializada
-        """
         # Dimensiones
         M, N, channels = frame.shape
         A = len(audio_chunk) if audio_chunk is not None else 0
-        
-        # Estructura del header (48 bytes):
-        # - Magic number (4 bytes): 'MNAK'
-        # - M (4 bytes): ancho
-        # - N (4 bytes): alto  
-        # - A (4 bytes): muestras de audio
-        # - K (32 bytes): estado caótico (4 * float64)
-        
+        # header (4 + 4 + 4 + 4 + 32 bytes)  
         header = bytearray()
         header.extend(b'MNAK')  # Magic number
         header.extend(struct.pack('<I', M))
@@ -103,15 +54,7 @@ class MNAKFrameEncryptor:
         return bytes(header) + frame_bytes + audio_bytes
     
     def _deserialize_mnak(self, data_bytes):
-        """
-        Deserializa bytes a estructura M×N×A×K
-        
-        Args:
-            data_bytes: bytes serializados
-            
-        Returns:
-            tuple: (frame, audio_chunk, chaos_state, M, N, A)
-        """
+
         # Leer header (48 bytes)
         magic = data_bytes[0:4]
         if magic != b'MNAK':
@@ -143,16 +86,7 @@ class MNAKFrameEncryptor:
         return frame, audio_chunk, chaos_state, M, N, A
     
     def encrypt(self, frame, audio_chunk=None):
-        """
-        Encripta un frame con su audio y estado caótico (M×N×A×K)
-        
-        Args:
-            frame: numpy array (M, N, 3)
-            audio_chunk: numpy array (A,) - audio sincronizado con este frame
-            
-        Returns:
-            bytes: Datos encriptados
-        """
+
         # Obtener estado caótico actual (dimensión K)
         chaos_state = self._get_chaos_state()
         
@@ -169,15 +103,7 @@ class MNAKFrameEncryptor:
         return ciphertext
     
     def decrypt(self, ciphertext):
-        """
-        Desencripta datos a estructura M×N×A×K
-        
-        Args:
-            ciphertext: bytes encriptados
-            
-        Returns:
-            tuple: (frame, audio_chunk) - frame de video y audio desencriptados
-        """
+
         # Obtener estado caótico actual (debe estar sincronizado con encriptación)
         chaos_state = self._get_chaos_state()
         
@@ -194,19 +120,13 @@ class MNAKFrameEncryptor:
         # Verificar que el estado caótico coincida (validación de integridad)
         chaos_diff = np.array(chaos_state) - np.array(stored_chaos_state)
         if np.max(np.abs(chaos_diff)) > 1e-6:
-            print(f"⚠️ Advertencia: Estado caótico no coincide en frame {self.frame_count}")
-            print(f"   Esperado: {chaos_state}")
-            print(f"   Obtenido: {stored_chaos_state}")
+            print(f"Advertencia: Estado caótico no coincide en frame {self.frame_count}")
+            print(f"Esperado: {chaos_state}")
+            print(f"Obtenido: {stored_chaos_state}")
         
         return frame, audio_chunk
     
     def get_state_info(self):
-        """
-        Retorna información sobre el estado actual del encriptador
-        
-        Returns:
-            dict: Información de dimensiones y estado
-        """
         return {
             'frame_count': self.frame_count,
             'audio_samples_per_frame': self.audio_samples_per_frame,
