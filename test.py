@@ -2,6 +2,7 @@
 test.py
 Ejecución completa de pruebas criptográficas sobre video
 Proyecto: VideoEncryptionHyperchaotic
+Cifrado por archivos (offline)
 """
 
 import os
@@ -17,9 +18,10 @@ from analysis.statistical_tests import correlation, variance
 from analysis.quality_tests import psnr, mse, mad
 from analysis.ssim_tests import ssim
 from analysis.robustness_tests import add_noise, occlusion
-from analysis.differential_tests import modify_one_pixel, npcr, uaci
+from analysis.differential_tests import npcr, uaci
 from analysis.efficiency_tests import time_per_frame
 from analysis.frame_utils import match_frame_size
+from analysis.nist_tests import monobit_test, block_frequency_test
 
 # Reportes
 from reporting.plots import save_histogram, save_correlation_plot
@@ -50,28 +52,35 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 
 def main():
 
+    # =========================
     # CARGA DE VIDEOS
+    # =========================
     orig_frames, t_orig = load_video(ORIGINAL_VIDEO)
     enc_frames, t_enc = load_video(ENCRYPTED_VIDEO)
     dec_frames, t_dec = load_video(DECRYPTED_VIDEO)
 
-    # TOMA DE FRAMES DE EJEMPLO
+    if len(orig_frames) == 0 or len(enc_frames) == 0 or len(dec_frames) == 0:
+        raise RuntimeError("Uno o más videos no pudieron cargarse correctamente")
+
+    # =========================
+    # FRAMES DE REFERENCIA
+    # =========================
     f_orig = orig_frames[0]
-    f_enc = enc_frames[0]
-    f_dec = dec_frames[0]
+    f_enc = match_frame_size(f_orig, enc_frames[0])
+    f_dec = match_frame_size(f_orig, dec_frames[0])
 
-    # NORMALIZACIÓN DE TAMAÑOS
-    f_enc = match_frame_size(f_orig, f_enc)
-    f_dec = match_frame_size(f_orig, f_dec)
-
-    # ALEATORIEDAD
+    # =========================
+    # ALEATORIEDAD (ENTROPÍA)
+    # =========================
     randomness_results = {
         "Entropía global (Original)": entropy_global(orig_frames),
         "Entropía global (Cifrado)": entropy_global(enc_frames),
         "Entropía promedio por frame (Cifrado)": entropy_per_frame(enc_frames),
     }
 
-    # ESTADÍSTICAS
+    # =========================
+    # PRUEBAS ESTADÍSTICAS
+    # =========================
     statistical_results = {
         "Correlación horizontal (Original)": correlation(f_orig, "horizontal"),
         "Correlación horizontal (Cifrado)": correlation(f_enc, "horizontal"),
@@ -80,7 +89,9 @@ def main():
         "Varianza (Cifrado)": variance(f_enc),
     }
 
-    # CALIDAD DE DESCIFRADO
+    # =========================
+    # CALIDAD DEL DESCIFRADO
+    # =========================
     quality_results = {
         "PSNR (dB)": psnr(f_orig, f_dec),
         "MSE": mse(f_orig, f_dec),
@@ -88,7 +99,9 @@ def main():
         "SSIM": ssim(f_orig, f_dec),
     }
 
-    # ROBUSTEZ
+    # =========================
+    # ROBUSTEZ (ATAQUES SIMULADOS)
+    # =========================
     noisy_enc = add_noise(f_enc, sigma=15)
     occluded_enc = occlusion(f_enc, block_size=80)
 
@@ -97,16 +110,34 @@ def main():
         "PSNR con oclusión": psnr(f_orig, occluded_enc),
     }
 
-    # PRUEBAS DIFERENCIALES
-    modified_orig = modify_one_pixel(f_orig)
-    encrypted_modified = f_enc.copy()
+    # =========================
+    # PRUEBAS DIFERENCIALES (OFFLINE)
+    # =========================
+    if len(enc_frames) >= 2:
+        f_enc_1 = enc_frames[0]
+        f_enc_2 = match_frame_size(f_enc_1, enc_frames[1])
 
-    differential_results = {
-        "NPCR (%)": npcr(f_enc, encrypted_modified),
-        "UACI (%)": uaci(f_enc, encrypted_modified),
+        differential_results = {
+            "NPCR (%)": npcr(f_enc_1, f_enc_2),
+            "UACI (%)": uaci(f_enc_1, f_enc_2),
+        }
+    else:
+        differential_results = {
+            "NPCR (%)": 0.0,
+            "UACI (%)": 0.0,
+        }
+
+    # =========================
+    # PRUEBAS NIST (OFFLINE)
+    # =========================
+    nist_results = {
+        "Monobit Test": monobit_test(f_enc),
+        "Block Frequency Test": block_frequency_test(f_enc),
     }
 
+    # =========================
     # EFICIENCIA
+    # =========================
     efficiency_results = {
         "Tiempo lectura original (s)": t_orig,
         "Tiempo lectura cifrado (s)": t_enc,
@@ -114,7 +145,9 @@ def main():
         "Tiempo por frame (cifrado)": time_per_frame(t_enc, len(enc_frames)),
     }
 
+    # =========================
     # GRÁFICOS
+    # =========================
     save_histogram(f_orig, "Histograma - Original",
                    os.path.join(PLOTS_DIR, "hist_original.png"))
 
@@ -130,13 +163,16 @@ def main():
     save_correlation_plot(f_enc, "Correlación - Cifrado",
                           os.path.join(PLOTS_DIR, "corr_encrypted.png"))
 
-    # CONSOLIDACIÓN
+    # =========================
+    # CONSOLIDACIÓN DE RESULTADOS
+    # =========================
     results = {
         "Aleatoriedad": randomness_results,
         "Estadísticas": statistical_results,
         "Calidad del descifrado": quality_results,
         "Robustez": robustness_results,
         "Pruebas diferenciales": differential_results,
+        "Pruebas NIST": nist_results,
         "Eficiencia": efficiency_results,
     }
 

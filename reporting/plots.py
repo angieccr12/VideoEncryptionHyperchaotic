@@ -1,3 +1,4 @@
+# reporting/plots.py
 """
 plots.py
 Funciones de visualización para análisis criptográfico
