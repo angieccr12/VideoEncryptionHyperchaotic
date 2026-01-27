@@ -1,2 +1,9 @@
 opencv-python
 numpy
+pycryptodome
+moviepy==1.0.3
+ffmpeg-python
+matplotlib
+scipy
+scikit-image
+fpdf
