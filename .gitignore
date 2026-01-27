@@ -129,6 +129,7 @@ cython_debug/
 .vscode/
 
 # data
+data/
 *.mnak
 
 
