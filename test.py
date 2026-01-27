@@ -6,7 +6,10 @@ Proyecto: VideoEncryptionHyperchaotic
 
 import os
 
+# =========================
 # IMPORTS
+# =========================
+
 # Análisis
 from analysis.video_loader import load_video
 from analysis.entropy_tests import entropy_global, entropy_per_frame
@@ -23,7 +26,9 @@ from reporting.plots import save_histogram, save_correlation_plot
 from reporting.pdf_report import generate_pdf_report
 
 
+# =========================
 # CONFIGURACIÓN DE RUTAS
+# =========================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,8 +44,9 @@ DECRYPTED_VIDEO = os.path.join(DATA_DIR, "decrypted_video.mp4")
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-
+# =========================
 # MAIN
+# =========================
 
 def main():
 
@@ -140,6 +146,9 @@ def main():
     print("Informe generado en:", REPORT_PATH)
 
 
+# =========================
 # EJECUCIÓN
+# =========================
+
 if __name__ == "__main__":
     main()
