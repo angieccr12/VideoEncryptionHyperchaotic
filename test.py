@@ -6,6 +6,7 @@ Proyecto: VideoEncryptionHyperchaotic
 
 import os
 
+# IMPORTS
 # Análisis
 from analysis.video_loader import load_video
 from analysis.entropy_tests import entropy_global, entropy_per_frame
@@ -17,31 +18,33 @@ from analysis.differential_tests import modify_one_pixel, npcr, uaci
 from analysis.efficiency_tests import time_per_frame
 from analysis.frame_utils import match_frame_size
 
-# Reportes 
+# Reportes
 from reporting.plots import save_histogram, save_correlation_plot
 from reporting.pdf_report import generate_pdf_report
 
 
-# CONFIGURACIÓN
+# CONFIGURACIÓN DE RUTAS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ORIGINAL_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\video_prueba3.mp4"
-ENCRYPTED_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\encrypted_video.mp4"
-DECRYPTED_VIDEO = r"C:\Users\accal\Documentos\VideoEncryptionHyperchaotic\data\decrypted_video.mp4"
-
+DATA_DIR = os.path.join(BASE_DIR, "data")
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
 REPORT_PATH = os.path.join(RESULTS_DIR, "report.pdf")
 
+ORIGINAL_VIDEO = os.path.join(DATA_DIR, "video_prueba3.mp4")
+ENCRYPTED_VIDEO = os.path.join(DATA_DIR, "encrypted_video.mp4")
+DECRYPTED_VIDEO = os.path.join(DATA_DIR, "decrypted_video.mp4")
+
 os.makedirs(PLOTS_DIR, exist_ok=True)
+
 
 
 # MAIN
 
 def main():
 
-    # CARGA DE VIDEOS 
+    # CARGA DE VIDEOS
     orig_frames, t_orig = load_video(ORIGINAL_VIDEO)
     enc_frames, t_enc = load_video(ENCRYPTED_VIDEO)
     dec_frames, t_dec = load_video(DECRYPTED_VIDEO)
@@ -55,14 +58,14 @@ def main():
     f_enc = match_frame_size(f_orig, f_enc)
     f_dec = match_frame_size(f_orig, f_dec)
 
-    # ALEATORIEDAD 
+    # ALEATORIEDAD
     randomness_results = {
         "Entropía global (Original)": entropy_global(orig_frames),
         "Entropía global (Cifrado)": entropy_global(enc_frames),
         "Entropía promedio por frame (Cifrado)": entropy_per_frame(enc_frames),
     }
 
-    # ESTADÍSTICAS 
+    # ESTADÍSTICAS
     statistical_results = {
         "Correlación horizontal (Original)": correlation(f_orig, "horizontal"),
         "Correlación horizontal (Cifrado)": correlation(f_enc, "horizontal"),
@@ -79,7 +82,7 @@ def main():
         "SSIM": ssim(f_orig, f_dec),
     }
 
-    # ROBUSTEZ 
+    # ROBUSTEZ
     noisy_enc = add_noise(f_enc, sigma=15)
     occluded_enc = occlusion(f_enc, block_size=80)
 
@@ -90,7 +93,6 @@ def main():
 
     # PRUEBAS DIFERENCIALES
     modified_orig = modify_one_pixel(f_orig)
-
     encrypted_modified = f_enc.copy()
 
     differential_results = {
