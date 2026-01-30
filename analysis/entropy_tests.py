@@ -1,3 +1,4 @@
+# analysis/entropy_tests.py
 import numpy as np
 from scipy.stats import entropy
 
