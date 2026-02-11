@@ -12,8 +12,8 @@ import os
 # =========================
 
 # Análisis
-from analysis.video_loader import load_video
-from analysis.entropy_tests import entropy_global, entropy_per_frame
+from analysis.video_loader import load_video, load_mnak_files
+from analysis.entropy_tests import entropy_global, entropy_per_frame, entropy_mnak_global
 from analysis.statistical_tests import correlation, variance
 from analysis.quality_tests import psnr, mse, mad
 from analysis.ssim_tests import ssim
@@ -42,6 +42,7 @@ REPORT_PATH = os.path.join(RESULTS_DIR, "report.pdf")
 ORIGINAL_VIDEO = os.path.join(DATA_DIR, "video_prueba3.mp4")
 ENCRYPTED_VIDEO = os.path.join(DATA_DIR, "encrypted_video.mp4")
 DECRYPTED_VIDEO = os.path.join(DATA_DIR, "decrypted_video.mp4")
+ENCRYPTED_FRAMES_DIR = os.path.join(DATA_DIR, "encrypted_frames")
 
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
@@ -58,6 +59,15 @@ def main():
     orig_frames, t_orig = load_video(ORIGINAL_VIDEO)
     enc_frames, t_enc = load_video(ENCRYPTED_VIDEO)
     dec_frames, t_dec = load_video(DECRYPTED_VIDEO)
+    
+    # Cargar archivos .mnak completos (M×N×A×K)
+    print("\nCargando archivos MNAK completos para análisis de entropía...")
+    try:
+        mnak_data, mnak_dims, t_mnak = load_mnak_files(ENCRYPTED_FRAMES_DIR, max_frames=50)
+        has_mnak = True
+    except Exception as e:
+        print(f"No se pudieron cargar archivos MNAK: {e}")
+        has_mnak = False
 
     if len(orig_frames) == 0 or len(enc_frames) == 0 or len(dec_frames) == 0:
         raise RuntimeError("Uno o más videos no pudieron cargarse correctamente")
@@ -72,11 +82,19 @@ def main():
     # =========================
     # ALEATORIEDAD (ENTROPÍA)
     # =========================
+    print("\nCalculando entropía...")
     randomness_results = {
         "Entropía global (Original)": entropy_global(orig_frames),
-        "Entropía global (Cifrado)": entropy_global(enc_frames),
+        "Entropía global (Cifrado - solo video)": entropy_global(enc_frames),
         "Entropía promedio por frame (Cifrado)": entropy_per_frame(enc_frames),
     }
+    
+    # Entropía completa M×N×A×K desde archivos .mnak
+    if has_mnak:
+        print("\nEntropía MNAK completa (M×N×A×K):")
+        entropy_mnak = entropy_mnak_global(mnak_data, mnak_dims)
+        randomness_results["Entropía MNAK completa (M×N×A×K)"] = entropy_mnak
+        randomness_results["Dimensiones MNAK"] = f"M={mnak_dims['M']}, N={mnak_dims['N']}, A={mnak_dims['A']}, K={mnak_dims['K']}"
 
     # =========================
     # PRUEBAS ESTADÍSTICAS
