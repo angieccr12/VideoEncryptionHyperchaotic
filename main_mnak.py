@@ -2,7 +2,7 @@ import cv2
 import os
 import numpy as np
 from config.settings import *
-from crypto.chaos_generator import ChaosKeyGenerator
+from crypto.chaos_generator_16 import ChaosKeyGenerator
 from crypto.mnk_encryptor import MNAKFrameEncryptor
 from video.video_io import open_video, create_writer
 from gui.viewer import show_frames
