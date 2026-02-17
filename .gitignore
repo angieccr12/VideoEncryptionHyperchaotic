@@ -156,3 +156,5 @@ Thumbs.db
 
 data/
 
+# markdown files
+*.md
