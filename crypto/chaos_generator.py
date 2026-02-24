@@ -39,11 +39,7 @@ class ChaosKeyGenerator:
         self.z_delay = deque([self.z] * (self.delay3 + 1), maxlen=self.delay3 + 1)
 
     def _derive_initial_conditions(self, seed):
-        """
-        Deriva 4 condiciones iniciales no linealmente independientes desde seed.
-        Usa SHA-256 para garantizar que cada dimensión ocupe una región
-        diferente del espacio de fases, sin dependencia lineal entre ellas.
-        """
+        
         # Convertir seed a bytes de forma determinista
         seed_bytes = str(seed).encode('utf-8')
 
