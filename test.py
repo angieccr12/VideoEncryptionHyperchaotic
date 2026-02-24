@@ -18,13 +18,13 @@ from analysis.statistical_tests import correlation, variance
 from analysis.quality_tests import psnr, mse, mad
 from analysis.ssim_tests import ssim
 from analysis.robustness_tests import add_noise, occlusion
-from analysis.differential_tests import npcr, uaci
+from analysis.differential_tests import npcr, uaci, npcr_mnak, uaci_mnak, load_two_mnak_versions
 from analysis.efficiency_tests import time_per_frame
 from analysis.frame_utils import match_frame_size
 from analysis.nist_tests import monobit_test, block_frequency_test
 
 # Reportes
-from reporting.plots import save_histogram, save_correlation_plot
+from reporting.plots import save_histogram, save_correlation_plot, save_correlation_plot_mnak, save_correlation_heatmap_mnak, save_mnak_distribution_analysis
 from reporting.pdf_report import generate_pdf_report
 
 
@@ -131,19 +131,39 @@ def main():
     # =========================
     # PRUEBAS DIFERENCIALES (OFFLINE)
     # =========================
+    print("\nCalculando NPCR y UACI...")
     if len(enc_frames) >= 2:
         f_enc_1 = enc_frames[0]
         f_enc_2 = match_frame_size(f_enc_1, enc_frames[1])
 
         differential_results = {
-            "NPCR (%)": npcr(f_enc_1, f_enc_2),
-            "UACI (%)": uaci(f_enc_1, f_enc_2),
+            "NPCR (%) - solo video": npcr(f_enc_1, f_enc_2),
+            "UACI (%) - solo video": uaci(f_enc_1, f_enc_2),
         }
     else:
         differential_results = {
-            "NPCR (%)": 0.0,
-            "UACI (%)": 0.0,
+            "NPCR (%) - solo video": 0.0,
+            "UACI (%) - solo video": 0.0,
         }
+    
+    # NPCR/UACI completo M×N×A×K desde archivos .mnak
+    if has_mnak:
+        print("\nNPCR/UACI MNAK completo (M×N×A×K):")
+        mnak1, mnak2, success = load_two_mnak_versions(ENCRYPTED_FRAMES_DIR, frame_index=0)
+        
+        if success:
+            npcr_val = npcr_mnak(mnak1, mnak2)
+            uaci_val = uaci_mnak(mnak1, mnak2)
+            
+            differential_results["NPCR (%) - MNAK completo"] = npcr_val
+            differential_results["UACI (%) - MNAK completo"] = uaci_val
+            
+            print(f"  NPCR: {npcr_val:.4f}%")
+            print(f"  UACI: {uaci_val:.4f}%")
+            print(f"  Comparando: frame_000000.mnak vs frame_000001.mnak")
+            print(f"  Total bytes comparados: {len(mnak1)}")
+        else:
+            print("  No se pudieron cargar archivos MNAK para comparación diferencial")
 
     # =========================
     # PRUEBAS NIST (OFFLINE)
@@ -180,6 +200,33 @@ def main():
 
     save_correlation_plot(f_enc, "Correlación - Cifrado",
                           os.path.join(PLOTS_DIR, "corr_encrypted.png"))
+    
+    # Gráficas de correlación MNAK completas (M×N×A×K)
+    if has_mnak:
+        print("\nGenerando gráficas de correlación MNAK (M×N×A×K)...")
+        
+        # Análisis completo de distribución (4 gráficas en una)
+        print("\nAnálisis completo de uniformidad MNAK...")
+        stats0 = save_mnak_distribution_analysis(
+            mnak_data[0],
+            "MNAK Completo (M×N×A×K) - Frame 0",
+            os.path.join(PLOTS_DIR, "mnak_frame0")
+        )
+        
+        if len(mnak_data) > 10:
+            stats10 = save_mnak_distribution_analysis(
+                mnak_data[10],
+                "MNAK Completo (M×N×A×K) - Frame 10",
+                os.path.join(PLOTS_DIR, "mnak_frame10")
+            )
+        
+        # Gráficas individuales adicionales (opcionales)
+        save_correlation_plot_mnak(
+            mnak_data[0], 
+            "Correlación MNAK Completa (M×N×A×K) - Frame 0",
+            os.path.join(PLOTS_DIR, "corr_mnak_frame0.png"),
+            sample_size=20000
+        )
 
     # =========================
     # CONSOLIDACIÓN DE RESULTADOS

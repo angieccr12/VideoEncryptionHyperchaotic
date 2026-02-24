@@ -158,3 +158,5 @@ data/
 
 # markdown files
 *.md
+
+rk4_comparison.py

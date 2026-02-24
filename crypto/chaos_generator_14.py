@@ -24,24 +24,60 @@ class ChaosKeyGenerator:
 
         # Warm up the system to leave transient behavior
         for _ in range(1000):
-            self._euler_step()
+            self._rk4_step()
 
-    def _euler_step(self):
-        """Euler discretization of the NHS (Eq. 14 in paper)"""
-        a, b, c, d, tau = self.a, self.b, self.c, self.d, self.tau
-        x, y, z, w = self.x, self.y, self.z, self.w
+    def _derivatives(self, x, y, z, w):
+        """Compute derivatives of the NHS system"""
+        a, b, c, d = self.a, self.b, self.c, self.d
+        dx = -a*x - b*y*z
+        dy = -x + c*y + c*w
+        dz = d - y**2 - z
+        dw = x - w
+        return dx, dy, dz, dw
 
-        self.x = x + tau * (-a*x - b*y*z)
-        self.y = y + tau * (-x + c*y + c*w)
-        self.z = z + tau * (d - y**2 - z)
-        self.w = w + tau * (x - w)
+    def _rk4_step(self):
+        """Runge-Kutta 4th order integration for better numerical accuracy"""
+        tau = self.tau
+        
+        # k1 = f(t_n, y_n)
+        k1_x, k1_y, k1_z, k1_w = self._derivatives(self.x, self.y, self.z, self.w)
+        
+        # k2 = f(t_n + tau/2, y_n + k1*tau/2)
+        k2_x, k2_y, k2_z, k2_w = self._derivatives(
+            self.x + k1_x * tau / 2,
+            self.y + k1_y * tau / 2,
+            self.z + k1_z * tau / 2,
+            self.w + k1_w * tau / 2
+        )
+        
+        # k3 = f(t_n + tau/2, y_n + k2*tau/2)
+        k3_x, k3_y, k3_z, k3_w = self._derivatives(
+            self.x + k2_x * tau / 2,
+            self.y + k2_y * tau / 2,
+            self.z + k2_z * tau / 2,
+            self.w + k2_w * tau / 2
+        )
+        
+        # k4 = f(t_n + tau, y_n + k3*tau)
+        k4_x, k4_y, k4_z, k4_w = self._derivatives(
+            self.x + k3_x * tau,
+            self.y + k3_y * tau,
+            self.z + k3_z * tau,
+            self.w + k3_w * tau
+        )
+        
+        # y_{n+1} = y_n + (k1 + 2*k2 + 2*k3 + k4) * tau / 6
+        self.x = self.x + (k1_x + 2*k2_x + 2*k3_x + k4_x) * tau / 6
+        self.y = self.y + (k1_y + 2*k2_y + 2*k3_y + k4_y) * tau / 6
+        self.z = self.z + (k1_z + 2*k2_z + 2*k3_z + k4_z) * tau / 6
+        self.w = self.w + (k1_w + 2*k2_w + 2*k3_w + k4_w) * tau / 6
 
     def step(self):
-        self._euler_step()
+        self._rk4_step()
         return self.x, self.y, self.z, self.w
 
     def generate_key(self, shape):
-        self._euler_step()
+        self._rk4_step()
         chaos = np.array([self.x, self.y, self.z, self.w])
         # Normalize to [0, 255]
         chaos = np.abs(np.sin(chaos * 1e4))  # escala para más variación
