@@ -1,9 +1,10 @@
 import numpy as np
 from collections import deque
+import hashlib
 
 class ChaosKeyGenerator:
     """
-    Hyperchaotic time-delay system
+    Hyperchaotic time-delay system - genuinely 4D
     """
 
     def __init__(self, seed=0.1, dt=0.01):
@@ -24,16 +25,42 @@ class ChaosKeyGenerator:
         self.delay2 = int(self.tau2 / dt)
         self.delay3 = int(self.tau3 / dt)
 
-        # Initial conditions
-        self.x = seed
-        self.y = seed * 1.2
-        self.z = seed * 1.5
-        self.w = seed * 2.0
+        # Derivar 4 condiciones iniciales independientes desde seed
+        x0, y0, z0, w0 = self._derive_initial_conditions(seed)
+
+        self.x = x0
+        self.y = y0
+        self.z = z0
+        self.w = w0
 
         # Delay buffers
         self.x_delay = deque([self.x] * (self.delay1 + 1), maxlen=self.delay1 + 1)
         self.y_delay = deque([self.y] * (self.delay2 + 1), maxlen=self.delay2 + 1)
         self.z_delay = deque([self.z] * (self.delay3 + 1), maxlen=self.delay3 + 1)
+
+    def _derive_initial_conditions(self, seed):
+        """
+        Deriva 4 condiciones iniciales no linealmente independientes desde seed.
+        Usa SHA-256 para garantizar que cada dimensión ocupe una región
+        diferente del espacio de fases, sin dependencia lineal entre ellas.
+        """
+        # Convertir seed a bytes de forma determinista
+        seed_bytes = str(seed).encode('utf-8')
+
+        # Generar 4 hashes distintos usando salts diferentes
+        def hash_to_float(data, salt):
+            h = hashlib.sha256(data + salt).digest()
+            # Convertir primeros 8 bytes a float en (-2, 2)
+            raw = int.from_bytes(h[:8], 'big')
+            normalized = raw / (2**64 - 1)  # [0, 1]
+            return normalized * 4.0 - 2.0   # [-2, 2]
+
+        x0 = hash_to_float(seed_bytes, b'x_dimension')
+        y0 = hash_to_float(seed_bytes, b'y_dimension')
+        z0 = hash_to_float(seed_bytes, b'z_dimension')
+        w0 = hash_to_float(seed_bytes, b'w_dimension')
+
+        return x0, y0, z0, w0
 
     def step(self):
         x_tau = self.x_delay[0]
