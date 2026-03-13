@@ -1,130 +1,142 @@
-# analysis/entropy_tests.py
+"""
+entropy_tests.py
+Cálculo de entropía de Shannon para frames y archivos MNAK.
+
+Fórmula de Shannon (base 2):
+  H(X) = -Σ P(xi) · log2 P(xi)
+donde P(xi) = ni / N_total, ni = frecuencia absoluta del valor xi.
+
+El valor máximo teórico para datos de 8 bits es H_max = log2(256) = 8.0 bits.
+Un cifrador ideal produce H ≈ 7.999 bits (distribución casi uniforme).
+"""
+
 import numpy as np
 
-def entropy_global(frames, audio_dim=None, key_dim=None):
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Entropía sobre frames de video (arrays 2D)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def entropy_global(frames):
     """
-    Calcula la entropía de Shannon global según la fórmula:
-    H(X) = -Σ(ni/(M×N×A×K)) * log2(ni/(M×N×A×K))
-    
+    Entropía de Shannon global calculada sobre TODOS los frames concatenados.
+    El denominador es el total de bytes (píxeles) analizados.
+
     Args:
-        frames: Lista de frames (M×N cada uno)
-        audio_dim: Dimensión A del audio sincronizado (opcional)
-        key_dim: Dimensión K de la clave dinámica/parámetros (opcional)
-    
+        frames: lista de ndarrays uint8 (pueden ser 2D o 3D)
     Returns:
-        Entropía en bits
+        H en bits (máximo teórico: 8.0)
     """
-    # Concatenar todos los frames en un solo array
-    data = np.concatenate([f.flatten() for f in frames])
-    
-    # M×N×frames (total de píxeles)
-    total_elements = len(data)
-    
-    # Multiplicar por dimensiones adicionales si se proporcionan
-    denominator = total_elements
-    if audio_dim is not None and audio_dim > 0:
-        denominator *= audio_dim
-    if key_dim is not None and key_dim > 0:
-        denominator *= key_dim
-    
-    # Contar frecuencias absolutas (ni) para cada valor xi
-    unique_values, counts = np.unique(data, return_counts=True)
-    
-    # Calcular entropía usando log2 según fórmula [4]
-    # H(X) = -Σ P(xi) * log2(P(xi)) donde P(xi) = ni/(M×N×A×K)
+    data = np.concatenate([f.flatten() for f in frames]).astype(np.uint8)
+    N    = len(data)
+
+    _, counts = np.unique(data, return_counts=True)
+
     H = 0.0
     for ni in counts:
-        P_xi = ni / denominator  # P(xi) = ni/(M×N×A×K)
-        if P_xi > 0:
-            H -= P_xi * np.log2(P_xi)
-    
-    return H
+        p = ni / N
+        if p > 0:
+            H -= p * np.log2(p)
+    return float(H)
 
-def entropy_per_frame(frames, audio_dim=None, key_dim=None):
+
+def entropy_per_frame(frames):
     """
-    Calcula la entropía promedio por frame usando la misma fórmula de Shannon.
-    
+    Entropía de Shannon promedio calculada frame a frame.
+
     Args:
-        frames: Lista de frames
-        audio_dim: Dimensión A del audio (opcional)
-        key_dim: Dimensión K de la clave dinámica (opcional)
-    
+        frames: lista de ndarrays uint8
     Returns:
-        Entropía promedio en bits
+        H promedio en bits
     """
     values = []
     for f in frames:
-        data = f.flatten()
-        
-        # M×N (píxeles del frame)
-        total_elements = len(data)
-        
-        # Multiplicar por dimensiones adicionales
-        denominator = total_elements
-        if audio_dim is not None and audio_dim > 0:
-            denominator *= audio_dim
-        if key_dim is not None and key_dim > 0:
-            denominator *= key_dim
-        
-        # Frecuencias absolutas
-        unique_values, counts = np.unique(data, return_counts=True)
-        
-        # Calcular entropía con log2
+        data = f.flatten().astype(np.uint8)
+        N    = len(data)
+        _, counts = np.unique(data, return_counts=True)
+
         H = 0.0
         for ni in counts:
-            P_xi = ni / denominator
-            if P_xi > 0:
-                H -= P_xi * np.log2(P_xi)
-        
+            p = ni / N
+            if p > 0:
+                H -= p * np.log2(p)
         values.append(H)
-    
+
     return float(np.mean(values))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Entropía sobre archivos .mnak completos (M×N×A×K)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def entropy_mnak_global(data_arrays, dimensions):
     """
-    Calcula la entropía de Shannon para archivos MNAK completos (M×N×A×K).
-    Incluye todos los datos cifrados: frames, audio y estado caótico.
-    
+    Entropía de Shannon para archivos MNAK completos (M×N×A×K).
+    Incluye frame, audio y estado caótico serializado en cada archivo.
+
+    El cálculo se realiza sobre TODOS los bytes cifrados concatenados,
+    que representan el volumen total M×N×A×K del esquema de cifrado.
+
     Args:
-        data_arrays: Lista de arrays de bytes cifrados (del archivo .mnak completo)
-        dimensions: Dict con dimensiones {M, N, A, K, total_frames}
-    
+        data_arrays: lista de ndarrays uint8 (contenido completo de cada .mnak)
+        dimensions:  dict con dimensiones {M, N, A, K, total_frames}
     Returns:
-        Entropía en bits calculada sobre el volumen total M×N×A×K
+        H en bits (valor ideal: ≥ 7.99)
     """
-    # Concatenar todos los archivos .mnak en un solo array
-    all_data = np.concatenate([arr for arr in data_arrays])
-    
-    # Total de bytes cifrados
+    # Concatenar todos los archivos cifrados
+    all_data   = np.concatenate(data_arrays).astype(np.uint8)
     total_bytes = len(all_data)
-    
-    # Contar frecuencias absolutas (ni) de cada valor (0-255)
-    unique_values, counts = np.unique(all_data, return_counts=True)
-    
-    # Calcular entropía con log2 según fórmula [4]
-    # H(X) = -Σ(ni/Total) * log2(ni/Total)
-    # donde Total = M×N×A×K para todos los frames
+
+    # Frecuencias absolutas para los 256 posibles valores de byte
+    counts_full = np.zeros(256, dtype=np.int64)
+    unique_vals, unique_counts = np.unique(all_data, return_counts=True)
+    counts_full[unique_vals] = unique_counts
+
+    # Entropía de Shannon
     H = 0.0
-    for ni in counts:
-        P_xi = ni / total_bytes
-        if P_xi > 0:
-            H -= P_xi * np.log2(P_xi)
-    
-    # Información adicional sobre las dimensiones
-    M = dimensions.get('M', 0)
-    N = dimensions.get('N', 0)
-    A = dimensions.get('A', 0)
-    K = dimensions.get('K', 0)
+    for ni in counts_full:
+        if ni > 0:
+            p = ni / total_bytes
+            H -= p * np.log2(p)
+
+    # Información de diagnóstico
+    M      = dimensions.get('M', 0)
+    N      = dimensions.get('N', 0)
+    A      = dimensions.get('A', 0)
+    K      = dimensions.get('K', 0)
     frames = dimensions.get('total_frames', 1)
-    
-    theoretical_total = M * N * 3 * frames  # píxeles RGB
-    if A > 0:
-        theoretical_total += A * 2 * frames  # audio int16
-    theoretical_total += K * frames  # estado caótico
-    theoretical_total += 48 * frames  # headers
-    
-    print(f"  Total bytes analizados: {total_bytes}")
-    print(f"  Volumen teórico M×N×A×K: {theoretical_total}")
-    print(f"  Composición: {frames} frames × (M={M}, N={N}, A={A}, K={K})")
-    
-    return H
+
+    print(f"  [Entropía MNAK] Total bytes analizados : {total_bytes:,}")
+    print(f"  [Entropía MNAK] Frames incluidos       : {frames}")
+    print(f"  [Entropía MNAK] Dimensiones M×N×A×K   : {M}×{N}×{A}×{K}")
+    print(f"  [Entropía MNAK] H(X) calculado         : {H:.6f} bits")
+    print(f"  [Entropía MNAK] H_max teórico          : 8.000000 bits")
+    print(f"  [Entropía MNAK] Diferencia             : {8.0 - H:.6f} bits")
+
+    return float(H)
+
+
+def entropy_mnak_per_file(data_arrays):
+    """
+    Entropía de Shannon por archivo .mnak individual, devuelve media y std.
+
+    Args:
+        data_arrays: lista de ndarrays uint8
+    Returns:
+        (mean_H, std_H): entropía media y desviación estándar en bits
+    """
+    values = []
+    for arr in data_arrays:
+        data = arr.astype(np.uint8)
+        N    = len(data)
+        _, counts = np.unique(data, return_counts=True)
+
+        H = 0.0
+        for ni in counts:
+            p = ni / N
+            if p > 0:
+                H -= p * np.log2(p)
+        values.append(H)
+
+    arr_values = np.array(values)
+    return float(np.mean(arr_values)), float(np.std(arr_values))
