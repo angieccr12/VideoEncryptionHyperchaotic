@@ -409,16 +409,21 @@ def generate_pdf_report(results, plots_dir, output_path, system_params=None):
     # ── Descripción del pipeline ──────────────────────────────────────────────
     story.append(Paragraph("Pipeline de Cifrado", style_section))
     story.append(Paragraph(
-        "El sistema implementa un cifrador de video multicapa basado en un sistema "
-        "hipercaótico con retardo de tiempo de 4 dimensiones (x, y, z, w). El pipeline "
-        "de cifrado por frame consta de tres capas independientes: "
-        "(1) <b>Arnold Cat Map</b> con parámetros derivados del estado caótico — permutación "
-        "espacial determinista de los píxeles del frame RGB; "
-        "(2) <b>XOR Caótico</b> — operación XOR byte a byte entre el frame permutado y un "
-        "keystream expandido desde el estado caótico vía SHA3-256 en modo contador; "
-        "(3) <b>AES-CTR</b> — cifrado final del payload MNAK serializado completo (frame + "
-        "audio + estado caótico), con clave e IV derivados del mismo estado caótico. "
-        "El estado caótico almacenado en el header sirve para verificación de integridad.",
+        "El sistema implementa un cifrador de video basado en un generador hipercaótico "
+        "de 4 dimensiones (x, y, z, w). El pipeline de cifrado por frame consta de dos "
+        "etapas secuenciales: "
+        "(1) <b>Serialización MNAK</b> — el frame RGB (M×N×3 bytes), el chunk de audio "
+        "correspondiente (A muestras int16) y el estado caótico actual (K = 4×8 = 32 bytes "
+        "en float64) se empaquetan en un bloque binario con cabecera de 48 bytes que incluye "
+        "el magic number <i>MNAK</i>, las dimensiones M, N, A y el propio estado caótico "
+        "serializado; "
+        "(2) <b>AES-CFB (128 bits)</b> — el bloque serializado completo se cifra con AES en "
+        "modo CFB (segment_size=128). La clave de 16 bytes y el IV de 16 bytes se derivan "
+        "deterministamente del estado caótico mediante SHA3-256: se hashean los 32 bytes "
+        "del estado caótico concatenados con el contador de frame (uint64-LE), y los "
+        "primeros 16 bytes del digest se usan como clave y los 16 siguientes como IV. "
+        "El estado caótico embebido en la cabecera permite verificar la integridad del "
+        "descifrado comparándolo con el estado del generador sincronizado en el receptor.",
         style_body
     ))
 
